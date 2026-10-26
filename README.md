@@ -74,7 +74,7 @@ graph TD
    ```
 
 4. **Access the Application**:
-   * 🖥️ **Live Web Dashboard:** [http://localhost:5000/](http://localhost:5000/)
+   * 🖥️ **Live Web Dashboard:** https://suddenly-teaches-pale-workout.trycloudflare.com/
    * 📖 **Interactive Swagger UI:** [http://localhost:5000/docs](http://localhost:5000/docs)
    * 🩺 **System Health Endpoint:** [http://localhost:5000/health](http://localhost:5000/health)
    * 📥 **CSV Export Report:** [http://localhost:5000/api/export/csv](http://localhost:5000/api/export/csv)
