@@ -1,0 +1,85 @@
+/* StockPilot Custom Accents & Micro-Animations */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+    --primary-gradient: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+    --card-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%);
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.font-mono {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* Glassmorphism Accents */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.glass-nav {
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+/* Subtle Glowing Border on Focus & Hover */
+.glow-on-hover:hover {
+    box-shadow: 0 4px 20px -2px rgba(59, 130, 246, 0.25);
+    transform: translateY(-1px);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Pulsing Badge Animations */
+@keyframes pulse-subtle {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.03);
+    }
+}
+
+.pulse-badge {
+    animation: pulse-subtle 2s infinite ease-in-out;
+}
+
+/* Smooth Table Row Transitions */
+tr.inventory-row {
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+tr.inventory-row:hover {
+    background-color: rgba(241, 245, 249, 0.7);
+}
+
+/* Toast Notification Styles */
+#toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    pointer-events: none;
+}
+
+.toast {
+    pointer-events: auto;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Modal Transition */
+.modal-backdrop {
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+}

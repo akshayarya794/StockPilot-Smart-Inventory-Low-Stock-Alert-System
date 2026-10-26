@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  stockpilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: stockpilot:1.0
+    container_name: stockpilot-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - DB_PATH=/app/data/stockpilot.db
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - stockpilot-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health').read()"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  stockpilot-data:
+    name: stockpilot-data

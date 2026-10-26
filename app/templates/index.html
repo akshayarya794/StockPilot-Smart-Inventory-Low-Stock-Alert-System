@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockPilot — Smart Inventory & Low-Stock Alert System</title>
+    <meta name="description" content="Production-ready FastAPI smart inventory management and real-time low-stock alerting dashboard.">
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/style.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            900: '#0c4a6e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased">
+
+    <!-- Top Navigation Bar -->
+    <header class="glass-nav text-white sticky top-0 z-40 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Brand & Title -->
+            <div class="flex items-center space-x-3">
+                <div class="h-10 w-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-md shadow-sky-500/20">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-sky-400 via-teal-300 to-white bg-clip-text text-transparent">StockPilot</span>
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-sky-900/80 text-sky-300 border border-sky-700 font-mono font-medium">FastAPI v1.0</span>
+                    </div>
+                    <p class="text-xs text-slate-400 hidden sm:block">Smart Inventory & Low-Stock Alert System</p>
+                </div>
+            </div>
+
+            <!-- Health Status & Quick Action Buttons -->
+            <div class="flex items-center space-x-3 sm:space-x-4">
+                <!-- Live Health Badge -->
+                <div id="health-badge-container" class="flex items-center space-x-2 bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-full text-xs transition-colors">
+                    <span id="health-indicator-dot" class="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="health-status-text" class="font-medium text-slate-300">Checking...</span>
+                </div>
+
+                <!-- Raw Health Check Link -->
+                <a href="/health" target="_blank" title="View raw JSON health response" class="hidden md:inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition">
+                    <svg class="w-3.5 h-3.5 mr-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    /health
+                </a>
+
+                <!-- Swagger UI Documentation -->
+                <a href="/docs" target="_blank" title="OpenAPI Swagger UI" class="hidden md:inline-flex items-center px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition">
+                    <svg class="w-3.5 h-3.5 mr-1 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                    API Docs
+                </a>
+
+                <!-- Export CSV Button -->
+                <a href="/api/export/csv" download title="Export inventory snapshot as CSV" class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-300 bg-emerald-950/60 hover:bg-emerald-900/80 border border-emerald-700/60 transition shadow-sm">
+                    <svg class="w-3.5 h-3.5 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Export CSV
+                </a>
+
+                <!-- Add Product Button -->
+                <button id="btn-open-add-modal" onclick="openAddModal()" class="inline-flex items-center px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 shadow-md shadow-sky-500/20 transition active:scale-95">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Product
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+
+        <!-- Global Low-Stock Alert Banner -->
+        <div id="global-alert-banner" class="hidden bg-gradient-to-r from-rose-500/10 via-amber-500/10 to-transparent border-l-4 border-rose-500 p-4 rounded-xl shadow-sm glass-panel transition-all">
+            <div class="flex items-center justify-between flex-wrap gap-3">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 rounded-lg bg-rose-500 text-white shadow-md shadow-rose-500/30 animate-bounce">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-rose-900" id="alert-banner-title">Low-Stock Alert Triggered</h3>
+                        <p class="text-xs text-rose-700" id="alert-banner-desc">Immediate restocking required for affected catalog items.</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="btn-quick-filter-low" onclick="toggleLowStockFilter(true)" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-700 text-white shadow-sm transition active:scale-95">
+                        Filter Low-Stock Items
+                    </button>
+                    <button onclick="dismissAlertBanner()" class="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Cards Grid -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Total Products -->
+            <div class="glass-panel rounded-2xl p-6 shadow-sm border border-slate-200/80 glow-on-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Products</p>
+                        <h2 id="kpi-total-products" class="text-3xl font-extrabold text-slate-900 mt-2">--</h2>
+                        <p class="text-xs text-slate-500 mt-1">Unique catalog SKUs registered</p>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-sky-50 text-sky-600 border border-sky-100">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Inventory Units -->
+            <div class="glass-panel rounded-2xl p-6 shadow-sm border border-slate-200/80 glow-on-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Inventory Units</p>
+                        <h2 id="kpi-total-units" class="text-3xl font-extrabold text-slate-900 mt-2">--</h2>
+                        <p class="text-xs text-slate-500 mt-1">Stock on hand across all items</p>
+                    </div>
+                    <div class="p-3.5 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Low-Stock Alerts -->
+            <div id="kpi-low-stock-card" class="glass-panel rounded-2xl p-6 shadow-sm border border-slate-200/80 glow-on-hover transition-colors">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Low-Stock Alerts</p>
+                            <span id="kpi-low-stock-pill" class="hidden px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">Action Needed</span>
+                        </div>
+                        <h2 id="kpi-low-stock" class="text-3xl font-extrabold text-slate-900 mt-2">--</h2>
+                        <p class="text-xs text-slate-500 mt-1">Items at or below reorder level</p>
+                    </div>
+                    <div id="kpi-low-stock-icon" class="p-3.5 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100">
+                        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Inventory Table Section -->
+        <section class="glass-panel rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+            <!-- Search & Filter Controls -->
+            <div class="p-5 border-b border-slate-200 bg-white/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+                <div class="relative flex-1 max-w-md">
+                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </span>
+                    <input type="text" id="search-input" oninput="handleSearch(this.value)" placeholder="Search by Product Name, SKU, or Category..." 
+                           class="w-full pl-10 pr-4 py-2 text-sm bg-white border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 shadow-sm transition">
+                </div>
+
+                <div class="flex items-center space-x-3 self-end sm:self-center">
+                    <!-- Low-Stock Filter Switch -->
+                    <label class="relative inline-flex items-center cursor-pointer select-none">
+                        <input type="checkbox" id="low-stock-toggle" onchange="toggleLowStockFilter(this.checked)" class="sr-only peer">
+                        <div class="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:width-5 after:transition-all peer-checked:bg-rose-500"></div>
+                        <span class="ml-2.5 text-xs font-semibold text-slate-700">Low-Stock Only</span>
+                    </label>
+
+                    <!-- Reset Filters Button -->
+                    <button onclick="resetFilters()" title="Reset all filters" class="px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs font-medium text-slate-600 hover:bg-slate-100 transition">
+                        Reset
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table Responsive Container -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-100/80 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
+                        <tr>
+                            <th scope="col" class="py-3.5 px-4">SKU</th>
+                            <th scope="col" class="py-3.5 px-4">Product Details</th>
+                            <th scope="col" class="py-3.5 px-4">Category</th>
+                            <th scope="col" class="py-3.5 px-4 text-center">Stock Count</th>
+                            <th scope="col" class="py-3.5 px-4 text-center">Reorder Threshold</th>
+                            <th scope="col" class="py-3.5 px-4 text-center">Status</th>
+                            <th scope="col" class="py-3.5 px-4 text-right">Stock Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventory-table-body" class="divide-y divide-slate-200 bg-white/70">
+                        <!-- Hydrated via JavaScript -->
+                        <tr>
+                            <td colspan="7" class="py-12 text-center text-slate-400">Loading catalog items...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State Display -->
+            <div id="table-empty-state" class="hidden py-16 text-center">
+                <svg class="mx-auto h-12 w-12 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+                <h3 class="mt-2 text-sm font-semibold text-slate-700">No products found</h3>
+                <p class="mt-1 text-xs text-slate-500">Try adjusting your search criteria or adding a new product.</p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-t border-slate-200 py-6 text-center text-xs text-slate-500 bg-white/80">
+        <p>StockPilot — Smart Inventory & Low-Stock Alert System &bull; Production FastAPI &bull; Docker Containerized</p>
+    </footer>
+
+    <!-- ADD PRODUCT MODAL -->
+    <div id="add-product-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all">
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <h3 class="text-base font-bold">Add New Product</h3>
+                <button onclick="closeAddModal()" class="text-slate-400 hover:text-white transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <form id="add-product-form" onsubmit="submitAddProduct(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase">Product Name *</label>
+                    <input type="text" id="add-name" required minlength="2" placeholder="e.g. Wireless POS Scanner" 
+                           class="mt-1 w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase">Category *</label>
+                        <input type="text" id="add-category" required minlength="2" placeholder="e.g. Electronics" 
+                               class="mt-1 w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase">SKU (Unique) *</label>
+                        <input type="text" id="add-sku" required minlength="2" placeholder="e.g. SP-EL-102" 
+                               class="mt-1 w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none uppercase">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase">Initial Quantity *</label>
+                        <input type="number" id="add-quantity" required min="0" value="10" 
+                               class="mt-1 w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase">Reorder Level *</label>
+                        <input type="number" id="add-reorder" required min="0" value="10" 
+                               class="mt-1 w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="pt-3 flex items-center justify-end space-x-3 border-t border-slate-100">
+                    <button type="button" onclick="closeAddModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-sm transition active:scale-95">
+                        Create Product
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- EDIT PRODUCT MODAL -->
+    <div id="edit-product-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all">
+            <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+                <h3 class="text-base font-bold">Edit Product</h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-white transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <form id="edit-product-form" onsubmit="submitEditProduct(event)" class="p-6 space-y-4">
+                <input type="hidden" id="edit-id">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 uppercase">Product Name *</label>
+                    <input type="text" id="edit-name" required minlength="2" 
+                           class="mt-1 w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase">Category *</label>
+                        <input type="text" id="edit-category" required minlength="2" 
+                               class="mt-1 w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase">SKU *</label>
+                        <input type="text" id="edit-sku" required minlength="2" 
+                               class="mt-1 w-full px-3 py-2 text-sm font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none uppercase">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase">Quantity *</label>
+                        <input type="number" id="edit-quantity" required min="0" 
+                               class="mt-1 w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 uppercase">Reorder Level *</label>
+                        <input type="number" id="edit-reorder" required min="0" 
+                               class="mt-1 w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="pt-3 flex items-center justify-end space-x-3 border-t border-slate-100">
+                    <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 text-xs font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg shadow-sm transition active:scale-95">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <!-- Client-Side Dashboard Script -->
+    <script>
+        let currentProducts = [];
+        let searchTimeout = null;
+        let isLowStockOnly = false;
+        let searchQuery = "";
+
+        // Document Ready
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchHealth();
+            fetchProducts();
+            // Poll health every 10 seconds
+            setInterval(fetchHealth, 10000);
+        });
+
+        // 1. Fetch Health Status
+        async function fetchHealth() {
+            const dot = document.getElementById("health-indicator-dot");
+            const text = document.getElementById("health-status-text");
+            const container = document.getElementById("health-badge-container");
+
+            try {
+                const res = await fetch("/health");
+                if (res.ok) {
+                    const data = await res.json();
+                    dot.className = "h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse";
+                    text.textContent = "Status: OK (Healthy)";
+                    container.className = "flex items-center space-x-2 bg-emerald-950/40 border border-emerald-700/60 px-3 py-1.5 rounded-full text-xs text-emerald-300 transition-colors";
+                } else {
+                    throw new Error("Degraded");
+                }
+            } catch (err) {
+                dot.className = "h-2.5 w-2.5 rounded-full bg-rose-500";
+                text.textContent = "Status: Unreachable";
+                container.className = "flex items-center space-x-2 bg-rose-950/40 border border-rose-700/60 px-3 py-1.5 rounded-full text-xs text-rose-300 transition-colors";
+            }
+        }
+
+        // 2. Fetch Products and Update KPIs
+        async function fetchProducts() {
+            const url = new URL("/api/products", window.location.origin);
+            if (searchQuery) url.searchParams.set("search", searchQuery);
+            if (isLowStockOnly) url.searchParams.set("low_stock_only", "true");
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Failed to load products");
+                const data = await res.json();
+                currentProducts = data.items;
+
+                updateKPIs(data.summary);
+                renderTable(data.items);
+                updateAlertBanner(data.summary.low_stock_count);
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        }
+
+        // 3. Update KPI Summary Cards
+        function updateKPIs(summary) {
+            document.getElementById("kpi-total-products").textContent = summary.total_products;
+            document.getElementById("kpi-total-units").textContent = summary.total_units.toLocaleString();
+            
+            const lowCountEl = document.getElementById("kpi-low-stock");
+            const lowCard = document.getElementById("kpi-low-stock-card");
+            const lowPill = document.getElementById("kpi-low-stock-pill");
+            const lowIcon = document.getElementById("kpi-low-stock-icon");
+
+            lowCountEl.textContent = summary.low_stock_count;
+
+            if (summary.low_stock_count > 0) {
+                lowCard.className = "glass-panel rounded-2xl p-6 shadow-sm border border-rose-300 bg-rose-50/40 glow-on-hover transition-colors";
+                lowPill.classList.remove("hidden");
+                lowIcon.className = "p-3.5 rounded-2xl bg-rose-100 text-rose-600 border border-rose-200 animate-pulse";
+            } else {
+                lowCard.className = "glass-panel rounded-2xl p-6 shadow-sm border border-slate-200/80 glow-on-hover transition-colors";
+                lowPill.classList.add("hidden");
+                lowIcon.className = "p-3.5 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-100";
+            }
+        }
+
+        // 4. Update Alert Banner
+        function updateAlertBanner(lowStockCount) {
+            const banner = document.getElementById("global-alert-banner");
+            const title = document.getElementById("alert-banner-title");
+            const desc = document.getElementById("alert-banner-desc");
+
+            if (lowStockCount > 0) {
+                banner.classList.remove("hidden");
+                title.textContent = `Immediate Restocking Alert: ${lowStockCount} Product${lowStockCount > 1 ? 's' : ''} Low in Stock`;
+                desc.textContent = `These items are currently at or below their reorder threshold (quantity \u2264 reorder_level).`;
+            } else {
+                banner.classList.add("hidden");
+            }
+        }
+
+        function dismissAlertBanner() {
+            document.getElementById("global-alert-banner").classList.add("hidden");
+        }
+
+        // 5. Render Inventory Table
+        function renderTable(products) {
+            const tbody = document.getElementById("inventory-table-body");
+            const emptyState = document.getElementById("table-empty-state");
+
+            if (!products || products.length === 0) {
+                tbody.innerHTML = "";
+                emptyState.classList.remove("hidden");
+                return;
+            }
+
+            emptyState.classList.add("hidden");
+            tbody.innerHTML = products.map(p => {
+                let badgeHtml = "";
+                if (p.quantity === 0) {
+                    badgeHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">OUT OF STOCK</span>`;
+                } else if (p.is_low_stock) {
+                    badgeHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 pulse-badge shadow-sm">
+                        <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-amber-600"></span>LOW STOCK
+                    </span>`;
+                } else {
+                    badgeHtml = `<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <span class="w-1.5 h-1.5 mr-1.5 rounded-full bg-emerald-600"></span>IN STOCK
+                    </span>`;
+                }
+
+                return `
+                <tr class="inventory-row border-b border-slate-100 hover:bg-slate-50/80">
+                    <td class="py-3 px-4 font-mono font-semibold text-xs text-sky-700 whitespace-nowrap">
+                        <span class="bg-sky-50 px-2 py-1 rounded border border-sky-200/60">${escapeHtml(p.sku)}</span>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="font-semibold text-slate-800 text-sm">${escapeHtml(p.name)}</div>
+                        <div class="text-[11px] text-slate-400">ID: #${p.id} &bull; Updated: ${p.updated_at.replace('T', ' ').substring(0, 19)}</div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="inline-block px-2 py-0.5 text-xs font-medium bg-slate-100 text-slate-700 rounded-md border border-slate-200">
+                            ${escapeHtml(p.category)}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="font-mono text-base font-extrabold ${p.is_low_stock ? 'text-rose-600' : 'text-slate-900'}">
+                            ${p.quantity}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center font-mono text-xs text-slate-500 font-semibold">
+                        ${p.reorder_level}
+                    </td>
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                        ${badgeHtml}
+                    </td>
+                    <td class="py-3 px-4 text-right whitespace-nowrap">
+                        <div class="inline-flex items-center space-x-1.5">
+                            <!-- -1 Button -->
+                            <button onclick="adjustStock(${p.id}, -1, ${p.quantity})" title="Decrease by 1" 
+                                    class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition active:scale-90 border border-slate-300">
+                                -1
+                            </button>
+                            <!-- +1 Button -->
+                            <button onclick="adjustStock(${p.id}, 1, ${p.quantity})" title="Increase by 1" 
+                                    class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center transition active:scale-90 border border-slate-300">
+                                +1
+                            </button>
+                            <!-- +10 Button -->
+                            <button onclick="adjustStock(${p.id}, 10, ${p.quantity})" title="Restock +10" 
+                                    class="px-2 h-8 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold text-xs flex items-center justify-center transition active:scale-90 border border-sky-200">
+                                +10
+                            </button>
+                            <!-- Edit Button -->
+                            <button onclick="openEditModal(${p.id})" title="Edit Product" 
+                                    class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition active:scale-90 border border-slate-200">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                </svg>
+                            </button>
+                            <!-- Delete Button -->
+                            <button onclick="deleteProduct(${p.id}, '${escapeHtml(p.name)}')" title="Delete Product" 
+                                    class="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 flex items-center justify-center transition active:scale-90 border border-rose-200">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                `;
+            }).join("");
+        }
+
+        // 6. Stock Adjustment (with strict negative quantity rejection)
+        async function adjustStock(productId, delta, currentQty) {
+            if (delta < 0 && currentQty <= 0) {
+                showToast("Stock quantity cannot be negative", "error");
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/products/${productId}/stock`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ delta: delta })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.detail || "Failed to adjust stock", "error");
+                } else {
+                    const action = delta > 0 ? `+${delta}` : delta;
+                    showToast(`Updated stock: ${data.name} (${action}) \u2192 ${data.quantity} units`, "success");
+                    fetchProducts();
+                }
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        }
+
+        // 7. Search Handler (Debounced)
+        function handleSearch(val) {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchQuery = val.trim();
+                fetchProducts();
+            }, 250);
+        }
+
+        // 8. Low-Stock Filter Toggle
+        function toggleLowStockFilter(checked) {
+            isLowStockOnly = checked;
+            document.getElementById("low-stock-toggle").checked = checked;
+            fetchProducts();
+        }
+
+        // 9. Reset Filters
+        function resetFilters() {
+            document.getElementById("search-input").value = "";
+            document.getElementById("low-stock-toggle").checked = false;
+            searchQuery = "";
+            isLowStockOnly = false;
+            fetchProducts();
+        }
+
+        // 10. Add Product Modal
+        function openAddModal() {
+            document.getElementById("add-product-form").reset();
+            document.getElementById("add-product-modal").classList.remove("hidden");
+        }
+
+        function closeAddModal() {
+            document.getElementById("add-product-modal").classList.add("hidden");
+        }
+
+        async function submitAddProduct(e) {
+            e.preventDefault();
+            const payload = {
+                name: document.getElementById("add-name").value.trim(),
+                category: document.getElementById("add-category").value.trim(),
+                sku: document.getElementById("add-sku").value.trim().toUpperCase(),
+                quantity: parseInt(document.getElementById("add-quantity").value),
+                reorder_level: parseInt(document.getElementById("add-reorder").value)
+            };
+
+            try {
+                const res = await fetch("/api/products", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.detail || "Failed to create product", "error");
+                } else {
+                    showToast(`Added product "${data.name}" successfully`, "success");
+                    closeAddModal();
+                    fetchProducts();
+                }
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        }
+
+        // 11. Edit Product Modal
+        function openEditModal(productId) {
+            const p = currentProducts.find(item => item.id === productId);
+            if (!p) return;
+
+            document.getElementById("edit-id").value = p.id;
+            document.getElementById("edit-name").value = p.name;
+            document.getElementById("edit-category").value = p.category;
+            document.getElementById("edit-sku").value = p.sku;
+            document.getElementById("edit-quantity").value = p.quantity;
+            document.getElementById("edit-reorder").value = p.reorder_level;
+
+            document.getElementById("edit-product-modal").classList.remove("hidden");
+        }
+
+        function closeEditModal() {
+            document.getElementById("edit-product-modal").classList.add("hidden");
+        }
+
+        async function submitEditProduct(e) {
+            e.preventDefault();
+            const productId = document.getElementById("edit-id").value;
+            const payload = {
+                name: document.getElementById("edit-name").value.trim(),
+                category: document.getElementById("edit-category").value.trim(),
+                sku: document.getElementById("edit-sku").value.trim().toUpperCase(),
+                quantity: parseInt(document.getElementById("edit-quantity").value),
+                reorder_level: parseInt(document.getElementById("edit-reorder").value)
+            };
+
+            try {
+                const res = await fetch(`/api/products/${productId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.detail || "Failed to update product", "error");
+                } else {
+                    showToast(`Updated product "${data.name}"`, "success");
+                    closeEditModal();
+                    fetchProducts();
+                }
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        }
+
+        // 12. Delete Product
+        async function deleteProduct(productId, productName) {
+            if (!confirm(`Are you sure you want to remove "${productName}" from the catalog?`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/products/${productId}`, { method: "DELETE" });
+                if (!res.ok) {
+                    const data = await res.json();
+                    showToast(data.detail || "Failed to delete product", "error");
+                } else {
+                    showToast(`Product "${productName}" removed`, "success");
+                    fetchProducts();
+                }
+            } catch (err) {
+                showToast(err.message, "error");
+            }
+        }
+
+        // 13. Toast Notification Helper
+        function showToast(message, type = "info") {
+            const container = document.getElementById("toast-container");
+            const toast = document.createElement("div");
+            
+            let bgClass = "bg-slate-900 text-white";
+            let iconSvg = `<svg class="w-4 h-4 text-sky-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+            
+            if (type === "success") {
+                bgClass = "bg-emerald-900 border border-emerald-700 text-emerald-100";
+                iconSvg = `<svg class="w-4 h-4 text-emerald-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`;
+            } else if (type === "error") {
+                bgClass = "bg-rose-950 border border-rose-700 text-rose-100";
+                iconSvg = `<svg class="w-4 h-4 text-rose-400 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>`;
+            }
+
+            toast.className = `toast flex items-center px-4 py-3 rounded-xl shadow-xl text-xs font-medium ${bgClass} transform translate-y-4 opacity-0`;
+            toast.innerHTML = `${iconSvg}<span>${escapeHtml(message)}</span>`;
+
+            container.appendChild(toast);
+
+            // Animate in
+            requestAnimationFrame(() => {
+                toast.classList.remove("translate-y-4", "opacity-0");
+            });
+
+            // Auto dismiss after 3.5 seconds
+            setTimeout(() => {
+                toast.classList.add("opacity-0", "translate-y-2");
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, m => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            })[m]);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Python virtual environment
+venv/
+.venv/
+env/
+
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+
+# Database file & exports (keep directory structure)
+data/*.db
+data/*.csv
+!data/.gitkeep
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

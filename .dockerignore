@@ -1,0 +1,28 @@
+# Version control
+.git/
+.gitignore
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Local data & SQLite databases (persist only via Docker volume)
+data/*.db
+data/stockpilot.db
+
+# Environment & IDE
+.env
+.vscode/
+.idea/
+
+# Testing & scratch
+.coverage
+htmlcov/
